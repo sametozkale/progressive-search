@@ -4,39 +4,41 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Light, editorial palette */
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.18 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0 0);
+  /* Zero brand — dark surface, off-white type, yellow accent */
+  --background: oklch(0.145 0 0);              /* near black */
+  --foreground: oklch(0.985 0 0);              /* off-white */
 
-  /* Primary = deep accent green (the one bold color). */
-  --primary: oklch(0.52 0.16 148);
-  --primary-foreground: oklch(0.99 0 0);
+  --card: oklch(0.18 0 0);                     /* elevated surface */
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.18 0 0);
+  --popover-foreground: oklch(0.985 0 0);
 
-  --secondary: oklch(0.965 0 0);
-  --secondary-foreground: oklch(0.22 0 0);
-  --muted: oklch(0.965 0 0);
-  --muted-foreground: oklch(0.48 0 0);
-  --accent: oklch(0.52 0.16 148);
-  --accent-foreground: oklch(0.99 0 0);
-  --destructive: oklch(0.6 0.2 25);
+  /* Zero yellow */
+  --primary: oklch(0.88 0.17 95);              /* ~ #FFD60A */
+  --primary-foreground: oklch(0.18 0 0);
+
+  --secondary: oklch(0.215 0 0);               /* subtle raised */
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.215 0 0);
+  --muted-foreground: oklch(0.66 0 0);
+  --accent: oklch(0.88 0.17 95);
+  --accent-foreground: oklch(0.18 0 0);
+  --destructive: oklch(0.6 0.22 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.91 0 0);
-  --input: oklch(0.91 0 0);
-  --ring: oklch(0.52 0.16 148);
 
-  /* Match tier semantic tokens */
-  --tier-high: oklch(0.52 0.16 148);
-  --tier-high-foreground: oklch(0.99 0 0);
-  --tier-medium: oklch(0.66 0.15 65);
+  --border: oklch(1 0 0 / 0.08);
+  --input: oklch(1 0 0 / 0.12);
+  --ring: oklch(0.88 0.17 95);
+
+  /* Tiers — softer, more brand-aligned */
+  --tier-high: oklch(0.88 0.17 95);            /* yellow */
+  --tier-high-foreground: oklch(0.18 0 0);
+  --tier-medium: oklch(0.78 0.13 75);          /* warm amber */
   --tier-medium-foreground: oklch(0.18 0 0);
-  --tier-low: oklch(0.6 0 0);
+  --tier-low: oklch(0.55 0 0);
   --tier-low-foreground: oklch(0.99 0 0);
 
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 }
 
 @theme inline {
@@ -80,13 +82,17 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   body {
     @apply bg-background text-foreground;
     font-feature-settings: 'ss01', 'cv11';
   }
   ::selection {
-    background: var(--primary);
-    color: var(--primary-foreground);
+    background: color-mix(in oklch, var(--primary) 40%, transparent);
+    color: var(--foreground);
   }
 }
 
@@ -96,35 +102,30 @@
     background-image: linear-gradient(
       90deg,
       transparent 0%,
-      color-mix(in oklch, var(--primary) 35%, transparent) 50%,
+      color-mix(in oklch, var(--primary) 60%, transparent) 50%,
       transparent 100%
     );
     background-size: 200% 100%;
     animation: scan 1.4s linear infinite;
   }
   @keyframes scan {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
   }
 
+  /* Subtle dotted grid à la zero.inc */
   .grid-bg {
     background-image:
-      linear-gradient(to right, color-mix(in oklch, var(--border) 80%, transparent) 1px, transparent 1px),
-      linear-gradient(to bottom, color-mix(in oklch, var(--border) 80%, transparent) 1px, transparent 1px);
-    background-size: 40px 40px;
-    mask-image: radial-gradient(ellipse at center top, black 0%, transparent 70%);
+      radial-gradient(circle at 1px 1px, oklch(1 0 0 / 0.06) 1px, transparent 0);
+    background-size: 28px 28px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
+            mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
   }
 
   .blink {
     animation: blink 1.1s step-end infinite;
   }
   @keyframes blink {
-    50% {
-      opacity: 0;
-    }
+    50% { opacity: 0; }
   }
 }

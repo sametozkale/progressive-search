@@ -216,10 +216,8 @@ export function ProgressiveSearch() {
               running ? "border-primary/40" : "border-border",
             )}
           >
-            <div className="flex items-start gap-3 p-4">
-              <div className="mt-2 shrink-0 text-muted-foreground">
-                <Search className="size-4" />
-              </div>
+            <div className="flex items-center gap-3 px-4 py-3">
+              <Search className="size-4 shrink-0 text-muted-foreground" />
               <textarea
                 ref={inputRef}
                 value={draft}
@@ -227,7 +225,7 @@ export function ProgressiveSearch() {
                 onKeyDown={onKey}
                 rows={1}
                 placeholder="Describe what you're looking for…"
-                className="min-h-9 flex-1 resize-none bg-transparent py-2 text-base leading-relaxed outline-none placeholder:text-muted-foreground/70"
+                className="flex h-10 flex-1 resize-none items-center bg-transparent py-2.5 text-base leading-6 outline-none placeholder:text-muted-foreground/70"
               />
               <div className="flex shrink-0 items-center gap-2">
                 {running ? (
@@ -239,7 +237,7 @@ export function ProgressiveSearch() {
                       setDone(true)
                       setActiveIds([])
                     }}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 font-mono text-xs text-secondary-foreground transition hover:bg-muted"
+                    className="inline-flex h-10 items-center gap-1.5 rounded-md border border-border bg-secondary px-3.5 font-mono text-xs text-secondary-foreground transition hover:bg-muted"
                   >
                     <X className="size-3.5" />
                     Stop
@@ -248,7 +246,7 @@ export function ProgressiveSearch() {
                 <button
                   type="button"
                   onClick={submit}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 font-mono text-xs font-medium text-primary-foreground transition hover:opacity-90"
+                  className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 font-mono text-xs font-medium text-primary-foreground transition hover:opacity-90"
                 >
                   <Sparkles className="size-3.5" />
                   {running ? "Re-run" : done ? "Run again" : "Run"}
@@ -440,18 +438,25 @@ export function ProgressiveSearch() {
 function Header() {
   return (
     <header className="flex items-center justify-between">
-      <div className="flex items-center gap-2.5 font-mono text-xs text-muted-foreground">
-        <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <span className="font-mono text-[11px] font-bold">0</span>
-        </div>
-        <span className="text-foreground font-medium">zero</span>
-        <span className="text-muted-foreground/50">/</span>
-        <span>progressive search</span>
+      <div className="flex items-center gap-3">
+        {/* Official Zero wordmark from zero.inc */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/zero-wordmark.svg"
+          alt="Zero"
+          width={108}
+          height={22}
+          className="h-[22px] w-auto"
+        />
+        <span className="h-4 w-px bg-border" />
+        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          progressive search
+        </span>
       </div>
       <div className="hidden items-center gap-3 font-mono text-[11px] text-muted-foreground md:flex">
         <span>v0.1</span>
         <span className="size-1 rounded-full bg-muted-foreground/40" />
-        <span>local · 45 candidates</span>
+        <span>12,487 candidates</span>
       </div>
     </header>
   )
@@ -516,12 +521,12 @@ function TierChip({
     tier === "high"
       ? {
           dot: "bg-tier-high",
-          on: "border-tier-high/40 bg-tier-high/10 text-foreground",
+          on: "border-tier-high/20 bg-tier-high/8 text-foreground",
         }
       : tier === "medium"
         ? {
             dot: "bg-tier-medium",
-            on: "border-tier-medium/50 bg-tier-medium/15 text-foreground",
+            on: "border-tier-medium/20 bg-tier-medium/8 text-foreground",
           }
         : {
             dot: "bg-muted-foreground",
