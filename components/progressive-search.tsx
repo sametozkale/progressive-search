@@ -71,24 +71,20 @@ export function ProgressiveSearch() {
     setActiveIds([])
     setShowDiscarded(false)
 
-    // Reset all rows to pending
     const reset: EvalRow[] = COMPANIES.map((c) => ({ ...c, state: "pending" }))
     setRows(reset)
 
-    // Pick a randomized order for evaluation
     const order = [...reset]
       .map((r) => ({ r, k: Math.random() }))
       .sort((a, b) => a.k - b.k)
       .map((x) => x.r)
 
-    // Stagger between 80-220ms per row, plus a final settle
     let cursor = 250
     order.forEach((row, idx) => {
       const scanDelay = cursor
       const classifyDelay = cursor + 320 + Math.random() * 220
       cursor = classifyDelay + 90 + Math.random() * 140
 
-      // Mark as scanning (active in the scan beam)
       timeoutsRef.current.push(
         window.setTimeout(() => {
           setActiveIds((cur) => [...cur, row.id].slice(-3))
@@ -98,7 +94,6 @@ export function ProgressiveSearch() {
         }, scanDelay),
       )
 
-      // Classify
       timeoutsRef.current.push(
         window.setTimeout(() => {
           setActiveIds((cur) => cur.filter((id) => id !== row.id))
@@ -118,7 +113,6 @@ export function ProgressiveSearch() {
       )
     })
 
-    // Done
     timeoutsRef.current.push(
       window.setTimeout(() => {
         setRunning(false)
@@ -128,7 +122,6 @@ export function ProgressiveSearch() {
     )
   }
 
-  // Auto-run on mount
   useEffect(() => {
     const t = window.setTimeout(() => startSearch(DEFAULT_PROMPT), 350)
     return () => window.clearTimeout(t)
@@ -197,7 +190,6 @@ export function ProgressiveSearch() {
       ? 100
       : 0
 
-  // Pretend we are scanning a giant list
   const fakeEvaluated = Math.round(
     (evaluatedCount / COMPANIES.length) * TOTAL_CANDIDATES,
   )
@@ -213,18 +205,18 @@ export function ProgressiveSearch() {
     <main className="relative min-h-dvh">
       <BackgroundGrid />
 
-      <div className="relative mx-auto max-w-6xl px-5 pt-10 pb-32 md:px-8">
+      <div className="relative mx-auto max-w-6xl px-6 pt-12 pb-32 md:px-8">
         <Header />
 
         {/* Prompt */}
         <section className="mt-8">
           <div
             className={cn(
-              "group relative rounded-xl border bg-card/60 backdrop-blur-sm transition-colors",
+              "group relative rounded-xl border bg-card shadow-sm transition-colors",
               running ? "border-primary/40" : "border-border",
             )}
           >
-            <div className="flex items-start gap-3 p-3">
+            <div className="flex items-start gap-3 p-4">
               <div className="mt-2 shrink-0 text-muted-foreground">
                 <Search className="size-4" />
               </div>
@@ -247,7 +239,7 @@ export function ProgressiveSearch() {
                       setDone(true)
                       setActiveIds([])
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-2.5 py-1.5 font-mono text-xs text-secondary-foreground hover:bg-secondary/80"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 font-mono text-xs text-secondary-foreground transition hover:bg-muted"
                   >
                     <X className="size-3.5" />
                     Stop
@@ -256,11 +248,11 @@ export function ProgressiveSearch() {
                 <button
                   type="button"
                   onClick={submit}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 font-mono text-xs font-medium text-primary-foreground transition hover:opacity-90"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 font-mono text-xs font-medium text-primary-foreground transition hover:opacity-90"
                 >
                   <Sparkles className="size-3.5" />
                   {running ? "Re-run" : done ? "Run again" : "Run"}
-                  <kbd className="ml-1 inline-flex items-center gap-0.5 rounded border border-primary-foreground/20 bg-primary-foreground/10 px-1 py-0.5 text-[10px] leading-none">
+                  <kbd className="ml-1 inline-flex items-center gap-0.5 rounded border border-primary-foreground/25 bg-primary-foreground/10 px-1 py-0.5 text-[10px] leading-none">
                     <CornerDownLeft className="size-2.5" />
                   </kbd>
                 </button>
@@ -287,7 +279,7 @@ export function ProgressiveSearch() {
             </div>
 
             {/* Status bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 font-mono text-[11px] text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 font-mono text-[11px] text-muted-foreground">
               <div className="flex items-center gap-3">
                 <span className="inline-flex items-center gap-1.5">
                   <span
@@ -302,24 +294,28 @@ export function ProgressiveSearch() {
                   />
                   {running ? "evaluating" : done ? "complete" : "idle"}
                 </span>
+                <span className="hidden sm:inline-block h-3 w-px bg-border" />
                 <span>
                   {fakeEvaluated.toLocaleString()} /{" "}
                   {TOTAL_CANDIDATES.toLocaleString()} candidates
                 </span>
                 {activeIds.length > 0 && (
-                  <span className="hidden md:inline-flex items-center gap-1.5">
-                    <span className="text-foreground/70">→</span>
-                    <span className="truncate">
-                      scanning{" "}
-                      {activeIds
-                        .map(
-                          (id) => rows.find((r) => r.id === id)?.name ?? "",
-                        )
-                        .filter(Boolean)
-                        .join(", ")}
+                  <>
+                    <span className="hidden md:inline-block h-3 w-px bg-border" />
+                    <span className="hidden md:inline-flex items-center gap-1.5">
+                      <span className="text-foreground/70">→</span>
+                      <span className="truncate">
+                        scanning{" "}
+                        {activeIds
+                          .map(
+                            (id) => rows.find((r) => r.id === id)?.name ?? "",
+                          )
+                          .filter(Boolean)
+                          .join(", ")}
+                      </span>
+                      <span className="blink">▍</span>
                     </span>
-                    <span className="blink">▍</span>
-                  </span>
+                  </>
                 )}
               </div>
               <div className="flex items-center gap-3">
@@ -338,7 +334,11 @@ export function ProgressiveSearch() {
 
         {/* Toolbar */}
         <section className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 pr-1 font-mono text-[11px] text-muted-foreground">
+              <Filter className="size-3" />
+              filter
+            </span>
             <TierChip
               tier="high"
               active={tierFilter.has("high")}
@@ -351,17 +351,13 @@ export function ProgressiveSearch() {
               count={counts.medium}
               onClick={() => toggleTier("medium")}
             />
-            <span className="ml-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-              <Filter className="size-3" />
-              filter
-            </span>
           </div>
           <div className="flex items-center gap-2">
             <SortControl sort={sort} onChange={setSort} />
             <button
               type="button"
               onClick={() => startSearch(prompt)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-xs text-muted-foreground hover:text-foreground"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 font-mono text-[11px] text-muted-foreground transition hover:text-foreground hover:bg-secondary"
             >
               <RotateCcw className="size-3.5" />
               re-run
@@ -370,9 +366,9 @@ export function ProgressiveSearch() {
         </section>
 
         {/* Results list */}
-        <section className="mt-4 rounded-xl border border-border bg-card/40">
+        <section className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           {/* column header */}
-          <div className="grid grid-cols-12 gap-3 border-b border-border px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <div className="grid grid-cols-12 gap-4 border-b border-border bg-secondary/60 px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             <div className="col-span-1">tier</div>
             <div className="col-span-4 md:col-span-3">company</div>
             <div className="col-span-7 md:col-span-6">match · reasoning</div>
@@ -399,9 +395,9 @@ export function ProgressiveSearch() {
                     onMouseEnter={() => setHoverId(row.id)}
                     onMouseLeave={() => setHoverId(null)}
                     className={cn(
-                      "group relative grid grid-cols-12 gap-3 px-4 py-3 outline-none transition-colors",
-                      "hover:bg-secondary/40 focus-within:bg-secondary/40",
-                      hoverId === row.id && "bg-secondary/40",
+                      "group relative grid grid-cols-12 gap-4 px-5 py-4 outline-none transition-colors",
+                      "hover:bg-secondary/60 focus-within:bg-secondary/60",
+                      hoverId === row.id && "bg-secondary/60",
                     )}
                     tabIndex={0}
                   >
@@ -414,7 +410,7 @@ export function ProgressiveSearch() {
 
           {/* Empty state for filter */}
           {visibleRows.length === 0 && (
-            <div className="px-4 py-10 text-center font-mono text-xs text-muted-foreground">
+            <div className="px-5 py-12 text-center font-mono text-xs text-muted-foreground">
               {running
                 ? "waiting for matches…"
                 : "no matches in current filter."}
@@ -439,17 +435,17 @@ export function ProgressiveSearch() {
   )
 }
 
-/* ────────── components ────────── */
+/* ───────── components ────────── */
 
 function Header() {
   return (
     <header className="flex items-center justify-between">
-      <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
-        <div className="flex size-5 items-center justify-center rounded-sm bg-primary text-primary-foreground">
-          <span className="font-mono text-[10px] font-bold">0</span>
+      <div className="flex items-center gap-2.5 font-mono text-xs text-muted-foreground">
+        <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+          <span className="font-mono text-[11px] font-bold">0</span>
         </div>
-        <span className="text-foreground">zero</span>
-        <span className="text-muted-foreground/60">/</span>
+        <span className="text-foreground font-medium">zero</span>
+        <span className="text-muted-foreground/50">/</span>
         <span>progressive search</span>
       </div>
       <div className="hidden items-center gap-3 font-mono text-[11px] text-muted-foreground md:flex">
@@ -463,7 +459,7 @@ function Header() {
 
 function BackgroundGrid() {
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] grid-bg opacity-40" />
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] grid-bg opacity-50" />
   )
 }
 
@@ -492,7 +488,7 @@ function Counter({
       )}
     >
       <span className={cn("size-1.5 rounded-full", `bg-current ${color}`)} />
-      <span className="text-foreground/70">{label}</span>
+      <span className="text-muted-foreground">{label}</span>
       <motion.span
         key={value}
         initial={{ y: -4, opacity: 0 }}
@@ -520,12 +516,12 @@ function TierChip({
     tier === "high"
       ? {
           dot: "bg-tier-high",
-          on: "border-tier-high/50 bg-tier-high/10 text-foreground",
+          on: "border-tier-high/40 bg-tier-high/10 text-foreground",
         }
       : tier === "medium"
         ? {
             dot: "bg-tier-medium",
-            on: "border-tier-medium/50 bg-tier-medium/10 text-foreground",
+            on: "border-tier-medium/50 bg-tier-medium/15 text-foreground",
           }
         : {
             dot: "bg-muted-foreground",
@@ -537,10 +533,10 @@ function TierChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 font-mono text-[11px] transition",
+        "inline-flex h-7 items-center gap-2 rounded-full border px-3 font-mono text-[11px] transition",
         active
           ? styles.on
-          : "border-border bg-transparent text-muted-foreground hover:text-foreground",
+          : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary",
       )}
     >
       <span className={cn("size-1.5 rounded-full", styles.dot)} />
@@ -564,7 +560,7 @@ function SortControl({
     { key: "founded", label: "founded" },
   ]
   return (
-    <div className="inline-flex items-center gap-1 rounded-md border border-border bg-card p-0.5 font-mono text-[11px]">
+    <div className="inline-flex h-8 items-center gap-0.5 rounded-md border border-border bg-card p-0.5 font-mono text-[11px]">
       {opts.map((o) => (
         <button
           key={o.key}
@@ -582,7 +578,7 @@ function SortControl({
             })
           }
           className={cn(
-            "inline-flex items-center gap-1 rounded px-2 py-1 transition",
+            "inline-flex h-7 items-center gap-1 rounded px-2.5 transition",
             sort.key === o.key
               ? "bg-secondary text-foreground"
               : "text-muted-foreground hover:text-foreground",
@@ -599,6 +595,40 @@ function SortControl({
           )}
         </button>
       ))}
+    </div>
+  )
+}
+
+function Logo({ domain, name, size = 36 }: { domain: string; name: string; size?: number }) {
+  const [errored, setErrored] = useState(false)
+  const initials = name
+    .split(/[\s.-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("")
+  return (
+    <div
+      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-secondary"
+      style={{ width: size, height: size }}
+      aria-hidden
+    >
+      {!errored ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`https://logo.clearbit.com/${domain}?size=128`}
+          alt=""
+          width={size}
+          height={size}
+          className="size-full object-contain p-1"
+          onError={() => setErrored(true)}
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <span className="font-mono text-[11px] font-medium text-muted-foreground">
+          {initials || "·"}
+        </span>
+      )}
     </div>
   )
 }
@@ -624,7 +654,7 @@ function Row({ row }: { row: EvalRow }) {
       <div className="col-span-1 flex items-center">
         <div className="flex items-center gap-2">
           <span className={cn("size-2 rounded-full", tierDot)} />
-          <span className={cn("font-mono text-[11px] uppercase", tierColor)}>
+          <span className={cn("font-mono text-[11px] uppercase font-medium", tierColor)}>
             {row.tier}
           </span>
         </div>
@@ -632,41 +662,46 @@ function Row({ row }: { row: EvalRow }) {
 
       {/* company */}
       <div className="col-span-4 md:col-span-3 min-w-0">
-        <div className="flex items-baseline gap-2">
-          <span className="truncate font-medium text-foreground">
-            {row.name}
-          </span>
-          <a
-            href={`https://${row.domain}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center font-mono text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-foreground"
-          >
-            {row.domain}
-            <ArrowUpRight className="ml-0.5 size-3" />
-          </a>
+        <div className="flex items-center gap-3">
+          <Logo domain={row.domain} name={row.name} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <span className="truncate font-medium text-foreground">
+                {row.name}
+              </span>
+              <a
+                href={`https://${row.domain}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center font-mono text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-foreground"
+              >
+                {row.domain}
+                <ArrowUpRight className="ml-0.5 size-3" />
+              </a>
+            </div>
+            <p className="truncate font-mono text-[11px] text-muted-foreground">
+              {row.tagline}
+            </p>
+          </div>
         </div>
-        <p className="truncate font-mono text-[11px] text-muted-foreground">
-          {row.tagline}
-        </p>
       </div>
 
       {/* match + reasoning */}
       <div className="col-span-7 md:col-span-6 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <ScoreBar score={row.score} tier={row.tier} />
           <span className="shrink-0 font-mono text-xs tabular-nums text-foreground">
             {row.score}
           </span>
         </div>
-        <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-foreground/80">
+        <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-foreground/80">
           {row.reasoning}
         </p>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {row.signals.map((s) => (
             <span
               key={s}
-              className="inline-flex items-center rounded border border-border bg-background/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+              className="inline-flex items-center rounded border border-border bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
             >
               {s}
             </span>
@@ -675,7 +710,7 @@ function Row({ row }: { row: EvalRow }) {
       </div>
 
       {/* meta */}
-      <div className="hidden md:col-span-2 md:flex flex-col items-end justify-center font-mono text-[11px] text-muted-foreground">
+      <div className="hidden md:col-span-2 md:flex flex-col items-end justify-center gap-0.5 font-mono text-[11px] text-muted-foreground">
         <span>{row.hq}</span>
         <span>
           {row.employees} ppl · {row.founded}
@@ -717,11 +752,11 @@ function DiscardedDrawer({
   onRestore: (id: string) => void
 }) {
   return (
-    <div className="border-t border-border">
+    <div className="border-t border-border bg-secondary/40">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-4 py-2.5 font-mono text-[11px] text-muted-foreground transition hover:text-foreground"
+        className="flex w-full items-center justify-between px-5 py-3 font-mono text-[11px] text-muted-foreground transition hover:text-foreground"
       >
         <span className="inline-flex items-center gap-2">
           <ChevronDown
@@ -749,7 +784,7 @@ function DiscardedDrawer({
             transition={{ duration: 0.22, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <ul className="divide-y divide-border/60 px-4 pb-3">
+            <ul className="divide-y divide-border/60 px-5 pb-3">
               {rows.length === 0 && (
                 <li className="py-3 text-center font-mono text-[11px] text-muted-foreground">
                   nothing discarded yet.
@@ -758,14 +793,14 @@ function DiscardedDrawer({
               {rows.map((r) => (
                 <li
                   key={r.id}
-                  className="flex items-center justify-between gap-3 py-2"
+                  className="flex items-center justify-between gap-3 py-2.5"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
-                    <span className="truncate text-sm text-foreground/70">
+                    <Logo domain={r.domain} name={r.name} size={24} />
+                    <span className="truncate text-sm text-foreground/80">
                       {r.name}
                     </span>
-                    <span className="truncate font-mono text-[11px] text-muted-foreground">
+                    <span className="hidden md:inline truncate font-mono text-[11px] text-muted-foreground">
                       {r.reasoning}
                     </span>
                   </div>
@@ -776,7 +811,7 @@ function DiscardedDrawer({
                     <button
                       type="button"
                       onClick={() => onRestore(r.id)}
-                      className="inline-flex items-center gap-1 rounded border border-border bg-card px-2 py-0.5 text-muted-foreground transition hover:text-foreground"
+                      className="inline-flex h-6 items-center gap-1 rounded border border-border bg-card px-2 text-muted-foreground transition hover:text-foreground hover:bg-secondary"
                     >
                       <Undo2 className="size-3" />
                       restore
