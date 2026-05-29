@@ -7,12 +7,29 @@ import {
   ChevronDown,
   CornerDownLeft,
   Filter,
+  FilterX,
+  Info,
   RotateCcw,
+  ScanSearch,
   Search,
+  SearchX,
   Sparkles,
   Undo2,
+  Users,
   X,
 } from "lucide-react"
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Kbd } from "@/components/ui/kbd"
 import { COMPANIES, type Company, type Tier } from "@/lib/data"
 import { cn } from "@/lib/utils"
 
@@ -51,6 +68,7 @@ export function ProgressiveSearch() {
   })
   const [showDiscarded, setShowDiscarded] = useState(false)
   const [hoverId, setHoverId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const timeoutsRef = useRef<number[]>([])
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -194,6 +212,12 @@ export function ProgressiveSearch() {
     (evaluatedCount / COMPANIES.length) * TOTAL_CANDIDATES,
   )
 
+  const activeName =
+    activeIds
+      .map((id) => rows.find((r) => r.id === id)?.name ?? "")
+      .filter(Boolean)
+      .slice(-1)[0] ?? null
+
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
@@ -201,7 +225,51 @@ export function ProgressiveSearch() {
     }
   }
 
+  // Global keyboard navigation across the living result set.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null
+      const typing = el?.tagName === "INPUT" || el?.tagName === "TEXTAREA"
+
+      if (e.key === "/" && !typing) {
+        e.preventDefault()
+        inputRef.current?.focus()
+        return
+      }
+      if (typing) return
+      if ((e.key === "Escape" || e.key === "Esc") && selectedId) {
+        setSelectedId(null)
+        return
+      }
+      if (!visibleRows.length) return
+
+      const i = visibleRows.findIndex((r) => r.id === selectedId)
+      if (e.key === "ArrowDown" || e.key === "j") {
+        e.preventDefault()
+        const next = visibleRows[i < 0 ? 0 : Math.min(visibleRows.length - 1, i + 1)]
+        setSelectedId(next.id)
+      } else if (e.key === "ArrowUp" || e.key === "k") {
+        e.preventDefault()
+        const prev = visibleRows[i < 0 ? 0 : Math.max(0, i - 1)]
+        setSelectedId(prev.id)
+      } else if (e.key === "Enter" && selectedId) {
+        const row = visibleRows.find((r) => r.id === selectedId)
+        if (row) window.open(`https://${row.domain}`, "_blank", "noopener")
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [visibleRows, selectedId])
+
+  // Keep the selected row in view as the user navigates.
+  useEffect(() => {
+    if (!selectedId) return
+    const node = document.querySelector(`[data-row-id="${selectedId}"]`)
+    node?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+  }, [selectedId])
+
   return (
+    <TooltipProvider delayDuration={120}>
     <main className="relative min-h-dvh">
       <BackgroundGrid />
 
@@ -382,6 +450,7 @@ export function ProgressiveSearch() {
                   <motion.li
                     key={row.id}
                     layout
+                    data-row-id={row.id}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
@@ -392,13 +461,18 @@ export function ProgressiveSearch() {
                     }}
                     onMouseEnter={() => setHoverId(row.id)}
                     onMouseLeave={() => setHoverId(null)}
+                    onClick={() => setSelectedId(row.id)}
                     className={cn(
-                      "group relative grid grid-cols-12 gap-4 px-5 py-4 outline-none transition-colors",
-                      "hover:bg-secondary/60 focus-within:bg-secondary/60",
-                      hoverId === row.id && "bg-secondary/60",
+                      "group relative grid cursor-default grid-cols-12 gap-4 px-5 py-4 outline-none transition-colors",
+                      "hover:bg-secondary/60",
+                      selectedId === row.id
+                        ? "bg-secondary/80 ring-1 ring-inset ring-primary/50"
+                        : hoverId === row.id && "bg-secondary/60",
                     )}
-                    tabIndex={0}
                   >
+                    {selectedId === row.id && (
+                      <span className="absolute inset-y-0 left-0 w-0.5 bg-primary" />
+                    )}
                     <Row row={row} />
                   </motion.li>
                 ))}
@@ -406,14 +480,33 @@ export function ProgressiveSearch() {
             </ul>
           </LayoutGroup>
 
-          {/* Empty state for filter */}
-          {visibleRows.length === 0 && (
-            <div className="px-5 py-12 text-center font-mono text-xs text-muted-foreground">
-              {running
-                ? "waiting for matches…"
-                : "no matches in current filter."}
-            </div>
-          )}
+          {/* Empty states */}
+          {visibleRows.length === 0 &&
+            (running ? (
+              <ScanningPlaceholder activeName={activeName} />
+            ) : counts.surviving > 0 ? (
+              <EmptyState
+                icon={FilterX}
+                title="No results match your filters"
+                body={`${counts.surviving} ${
+                  counts.surviving === 1 ? "company is" : "companies are"
+                } hidden by the active tier filter.`}
+                action={{
+                  label: "Show all tiers",
+                  onClick: () => setTierFilter(new Set<Tier>(["high", "medium"])),
+                }}
+              />
+            ) : (
+              <EmptyState
+                icon={SearchX}
+                title="No strong matches found"
+                body="Nothing cleared the bar for this prompt. Try broadening the criteria or loosening a constraint, then run again."
+                action={{
+                  label: "Refine prompt",
+                  onClick: () => inputRef.current?.focus(),
+                }}
+              />
+            ))}
 
           {/* Discarded drawer */}
           <DiscardedDrawer
@@ -425,11 +518,19 @@ export function ProgressiveSearch() {
         </section>
 
         {/* Footer hint */}
-        <p className="mt-6 font-mono text-[11px] text-muted-foreground">
-          tip · refine, sort, or filter mid-pass — results re-rank live.
-        </p>
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] text-muted-foreground">
+          <span className="text-muted-foreground/70">
+            refine, sort, or filter mid-pass — results re-rank live.
+          </span>
+          <span className="flex items-center gap-2">
+            <KeyHint keys={["J", "K"]} label="navigate" />
+            <KeyHint keys={["↵"]} label="open" />
+            <KeyHint keys={["/"]} label="search" />
+          </span>
+        </div>
       </div>
     </main>
+    </TooltipProvider>
   )
 }
 
@@ -438,17 +539,20 @@ export function ProgressiveSearch() {
 function Header() {
   return (
     <header className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        {/* Official Zero wordmark from zero.inc */}
+      <div className="flex items-center gap-2.5">
+        {/* Official Zero brand mark from zero.inc */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/zero-wordmark.svg"
+          src="/zero-logo-dark.png"
           alt="Zero"
-          width={108}
-          height={22}
-          className="h-[22px] w-auto"
+          width={28}
+          height={28}
+          className="size-7 rounded-lg"
         />
-        <span className="h-4 w-px bg-border" />
+        <span className="text-[15px] font-semibold tracking-tight text-foreground">
+          Zero
+        </span>
+        <span className="mx-0.5 h-4 w-px bg-border" />
         <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
           progressive search
         </span>
@@ -456,7 +560,7 @@ function Header() {
       <div className="hidden items-center gap-3 font-mono text-[11px] text-muted-foreground md:flex">
         <span>v0.1</span>
         <span className="size-1 rounded-full bg-muted-foreground/40" />
-        <span>12,487 candidates</span>
+        <span>{TOTAL_CANDIDATES.toLocaleString()} candidates</span>
       </div>
     </header>
   )
@@ -465,6 +569,99 @@ function Header() {
 function BackgroundGrid() {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] grid-bg opacity-50" />
+  )
+}
+
+function KeyHint({ keys, label }: { keys: string[]; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="inline-flex items-center gap-0.5">
+        {keys.map((k) => (
+          <Kbd key={k}>{k}</Kbd>
+        ))}
+      </span>
+      <span className="text-muted-foreground/70">{label}</span>
+    </span>
+  )
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  body,
+  action,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  body: string
+  action?: { label: string; onClick: () => void }
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="flex flex-col items-center justify-center px-6 py-16 text-center"
+    >
+      <div className="relative mb-4 flex size-12 items-center justify-center rounded-xl border border-border bg-secondary">
+        <span className="absolute inset-0 rounded-xl bg-primary/5" />
+        <Icon className="size-5 text-muted-foreground" />
+      </div>
+      <h3 className="text-sm font-medium text-foreground">{title}</h3>
+      <p className="mt-1.5 max-w-sm text-pretty text-[13px] leading-relaxed text-muted-foreground">
+        {body}
+      </p>
+      {action && (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="mt-4 inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 font-mono text-[11px] text-foreground transition hover:bg-secondary"
+        >
+          {action.label}
+        </button>
+      )}
+    </motion.div>
+  )
+}
+
+function ScanningPlaceholder({ activeName }: { activeName: string | null }) {
+  return (
+    <div className="px-5 py-8">
+      <div className="flex items-center justify-center gap-2 pb-6 font-mono text-[11px] text-muted-foreground">
+        <ScanSearch className="size-3.5 text-primary" />
+        <span>
+          evaluating candidates
+          {activeName ? (
+            <>
+              {" · "}
+              <span className="text-foreground/80">{activeName}</span>
+            </>
+          ) : null}
+        </span>
+        <span className="blink text-primary">▍</span>
+      </div>
+      <ul className="space-y-3" aria-hidden>
+        {[0, 1, 2].map((i) => (
+          <li
+            key={i}
+            className="flex items-center gap-3"
+            style={{ opacity: 1 - i * 0.28 }}
+          >
+            <span className="size-9 shrink-0 overflow-hidden rounded-md border border-border bg-secondary">
+              <span className="block size-full scanline opacity-40" />
+            </span>
+            <div className="flex-1 space-y-2">
+              <span className="block h-2.5 w-1/3 overflow-hidden rounded bg-secondary">
+                <span className="block size-full scanline opacity-40" />
+              </span>
+              <span className="block h-2 w-2/3 overflow-hidden rounded bg-secondary">
+                <span className="block size-full scanline opacity-30" />
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
@@ -604,37 +801,166 @@ function SortControl({
   )
 }
 
+// Official company logos via free, key-less, open icon endpoints.
+// Chain: DuckDuckGo (best marks) → Google favicons (full coverage) → initials.
+function logoSources(domain: string) {
+  return [
+    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+    `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+  ]
+}
+
 function Logo({ domain, name, size = 36 }: { domain: string; name: string; size?: number }) {
-  const [errored, setErrored] = useState(false)
+  const sources = useMemo(() => logoSources(domain), [domain])
+  const [idx, setIdx] = useState(0)
+  const [loaded, setLoaded] = useState(false)
+  const exhausted = idx >= sources.length
+
   const initials = name
     .split(/[\s.-]+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((s) => s[0]?.toUpperCase() ?? "")
     .join("")
+
   return (
     <div
       className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-secondary"
       style={{ width: size, height: size }}
       aria-hidden
     >
-      {!errored ? (
+      {/* initials sit underneath as the resting/fallback layer */}
+      <span className="absolute font-mono text-[11px] font-medium text-muted-foreground">
+        {initials || "·"}
+      </span>
+      {!exhausted && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`https://logo.clearbit.com/${domain}?size=128`}
+          key={sources[idx]}
+          src={sources[idx] || "/placeholder.svg"}
           alt=""
           width={size}
           height={size}
-          className="size-full object-contain p-1"
-          onError={() => setErrored(true)}
+          loading="lazy"
+          className={cn(
+            "relative size-full bg-background object-contain p-1 transition-opacity duration-300",
+            loaded ? "opacity-100" : "opacity-0",
+          )}
+          onLoad={(e) => {
+            // Google returns a 16px generic globe for unknown domains; keep it,
+            // but treat truly tiny/empty responses as a miss.
+            const img = e.currentTarget
+            if (img.naturalWidth <= 1) {
+              setIdx((i) => i + 1)
+              return
+            }
+            setLoaded(true)
+          }}
+          onError={() => {
+            setLoaded(false)
+            setIdx((i) => i + 1)
+          }}
           referrerPolicy="no-referrer"
         />
-      ) : (
-        <span className="font-mono text-[11px] font-medium text-muted-foreground">
-          {initials || "·"}
-        </span>
       )}
     </div>
+  )
+}
+
+function tierLabel(tier: Tier) {
+  return tier === "high"
+    ? "High match"
+    : tier === "medium"
+      ? "Medium match"
+      : "Low match"
+}
+
+function tierClasses(tier: Tier) {
+  return tier === "high"
+    ? "text-tier-high"
+    : tier === "medium"
+      ? "text-tier-medium"
+      : "text-muted-foreground"
+}
+
+function ScoreBreakdown({ row }: { row: EvalRow }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-4">
+        <span className={cn("font-mono text-[11px] uppercase tracking-wide", tierClasses(row.tier))}>
+          {tierLabel(row.tier)}
+        </span>
+        <span className="font-mono text-xs tabular-nums text-foreground">
+          {row.score}
+          <span className="text-muted-foreground">/100</span>
+        </span>
+      </div>
+      <p className="text-[12px] leading-relaxed text-muted-foreground">
+        {row.reasoning}
+      </p>
+      {row.signals.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-0.5">
+          {row.signals.map((s) => (
+            <span
+              key={s}
+              className="rounded border border-border bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+            >
+              {s}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CompanyHoverCard({ row }: { row: EvalRow }) {
+  const meta: { label: string; value: string }[] = [
+    { label: "Category", value: row.category },
+    { label: "HQ", value: row.hq },
+    { label: "Headcount", value: `${row.employees} people` },
+    { label: "Founded", value: String(row.founded) },
+    { label: "Funding", value: row.funding },
+  ]
+  return (
+    <HoverCardContent side="right" align="start" className="w-80 p-0">
+      <div className="flex items-start gap-3 border-b border-border p-4">
+        <Logo domain={row.domain} name={row.name} size={40} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate font-medium text-foreground">{row.name}</span>
+            <span className={cn("font-mono text-[10px] uppercase tracking-wide", tierClasses(row.tier))}>
+              {row.tier}
+            </span>
+          </div>
+          <a
+            href={`https://${row.domain}`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-0.5 inline-flex items-center font-mono text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            {row.domain}
+            <ArrowUpRight className="ml-0.5 size-3" />
+          </a>
+        </div>
+        <span className="shrink-0 font-mono text-sm tabular-nums text-foreground">
+          {row.score}
+        </span>
+      </div>
+      <div className="space-y-3 p-4">
+        <p className="text-[13px] leading-relaxed text-foreground/80">{row.reasoning}</p>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+          {meta.map((m) => (
+            <div key={m.label} className="min-w-0">
+              <dt className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                {m.label}
+              </dt>
+              <dd className="truncate text-[12px] text-foreground">{m.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </HoverCardContent>
   )
 }
 
@@ -667,38 +993,52 @@ function Row({ row }: { row: EvalRow }) {
 
       {/* company */}
       <div className="col-span-4 md:col-span-3 min-w-0">
-        <div className="flex items-center gap-3">
-          <Logo domain={row.domain} name={row.name} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className="truncate font-medium text-foreground">
-                {row.name}
-              </span>
-              <a
-                href={`https://${row.domain}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center font-mono text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-foreground"
-              >
-                {row.domain}
-                <ArrowUpRight className="ml-0.5 size-3" />
-              </a>
+        <HoverCard openDelay={120} closeDelay={80}>
+          <HoverCardTrigger asChild>
+            <div className="flex w-fit max-w-full items-center gap-3">
+              <Logo domain={row.domain} name={row.name} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="truncate font-medium text-foreground decoration-dotted underline-offset-4 group-hover:underline">
+                    {row.name}
+                  </span>
+                  <a
+                    href={`https://${row.domain}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center font-mono text-[11px] text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-foreground"
+                  >
+                    {row.domain}
+                    <ArrowUpRight className="ml-0.5 size-3" />
+                  </a>
+                </div>
+                <p className="truncate font-mono text-[11px] text-muted-foreground">
+                  {row.tagline}
+                </p>
+              </div>
             </div>
-            <p className="truncate font-mono text-[11px] text-muted-foreground">
-              {row.tagline}
-            </p>
-          </div>
-        </div>
+          </HoverCardTrigger>
+          <CompanyHoverCard row={row} />
+        </HoverCard>
       </div>
 
       {/* match + reasoning */}
       <div className="col-span-7 md:col-span-6 min-w-0">
-        <div className="flex items-center gap-3">
-          <ScoreBar score={row.score} tier={row.tier} />
-          <span className="shrink-0 font-mono text-xs tabular-nums text-foreground">
-            {row.score}
-          </span>
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex w-fit max-w-full cursor-help items-center gap-3">
+              <ScoreBar score={row.score} tier={row.tier} />
+              <span className="inline-flex shrink-0 items-center gap-1 font-mono text-xs tabular-nums text-foreground">
+                {row.score}
+                <Info className="size-3 text-muted-foreground/60" />
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top" align="start" className="max-w-xs">
+            <ScoreBreakdown row={row} />
+          </TooltipContent>
+        </Tooltip>
         <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-foreground/80">
           {row.reasoning}
         </p>
